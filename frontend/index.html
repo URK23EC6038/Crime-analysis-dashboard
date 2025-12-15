@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Tamil Nadu Crime Analytics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background-color: #1f2937; color: #f3f4f6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 1px solid #374151; }
+        .leaflet-popup-content { font-size: 14px; }
+        .leaflet-popup-content h4 { font-weight: 700; color: #60a5fa; margin-bottom: 8px; }
+        .leaflet-popup-content p { margin: 4px 0; }
+        .leaflet-popup-content strong { color: #9ca3af; }
+        .chart-container { position: relative; height: 400px; width: 100%; }
+        .file-input-label { cursor: pointer; padding: 0.5rem 1rem; border-radius: 0.5rem; background-color: #374151; color: #d1d5db; transition: background-color 0.2s; text-align: center; }
+        .file-input-label:hover { background-color: #4b5563; }
+        .file-input { display: none; }
+        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
+        .card { background-color: #1f2937; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .legend { padding: 6px 8px; font: 14px Arial, Helvetica, sans-serif; background: rgba(31,41,55,0.8); color: #f3f4f6; line-height: 18px; border-radius: 5px; }
+        .legend i { width: 18px; height: 18px; float: left; margin-right: 8px; opacity: 0.9; }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #fff; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* NLP Tag Styles */
+        .nlp-tag { padding: 2px 8px; margin: 2px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+        .nlp-tag-PERSON { background-color: #fca5a5; color: #7f1d1d; }
+        .nlp-tag-ORG { background-color: #fdba74; color: #7c2d12; }
+        .nlp-tag-GPE { background-color: #86efac; color: #14532d; }
+        .nlp-tag-LOC { background-color: #93c5fd; color: #1e3a8a; }
+        .nlp-tag-DATE { background-color: #a5b4fc; color: #312e81; }
+        .nlp-tag-TIME { background-color: #c4b5fd; color: #4c1d95; }
+        .nlp-tag-CARDINAL { background-color: #f9a8d4; color: #831843; }
+        .nlp-tag-DEFAULT { background-color: #d1d5db; color: #1f2937; }
+    </style>
+</head>
+<body class="bg-gray-800 text-gray-200 p-4 lg:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl lg:text-4xl font-bold text-white">Advanced Crime Analytics Dashboard</h1>
+            <p class="text-lg text-gray-400 mt-2">Integrating Prediction, Forecasting, and Classification for Tamil Nadu</p>
+            <p id="current-date" class="text-sm text-gray-500 mt-1"></p>
+        </header>
+
+        <div id="summary-section" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 hidden">
+             <div class="card text-center">
+                <h3 class="text-lg font-semibold text-blue-400">Highest Crime District</h3>
+                <p id="highest-crime-district" class="text-2xl font-bold text-white mt-2">Loading...</p>
+                <p id="highest-crime-rate" class="text-md text-gray-400">Rate: -</p>
+            </div>
+            <div class="card text-center">
+                <h3 class="text-lg font-semibold text-green-400">Statewide Average Rate</h3>
+                <p id="average-crime-rate" class="text-2xl font-bold text-white mt-2">Loading...</p>
+                <p class="text-md text-gray-400">per 1 Lakh Population</p>
+            </div>
+             <div class="card text-center">
+                <h3 class="text-lg font-semibold text-red-400">Highest Severity Score</h3>
+                <p id="highest-severity-district" class="text-2xl font-bold text-white mt-2">Loading...</p>
+                <p id="highest-severity-score" class="text-md text-gray-400">Score: -</p>
+            </div>
+            <div class="card text-center">
+                <h3 class="text-lg font-semibold text-yellow-400">Total Population Analyzed</h3>
+                <p id="total-population" class="text-2xl font-bold text-white mt-2">Loading...</p>
+                <p class="text-md text-gray-400">in Lakhs</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+            <div class="lg:col-span-5 card">
+                <div class="flex items-center mb-4">
+                    <svg class="w-6 h-6 mr-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <h2 class="text-xl font-semibold text-white">Data Analysis Engine</h2>
+                </div>
+                <p class="text-sm text-gray-400 mb-4">Upload all 6 CSV files. The server will run the Python ML models to generate fresh insights.</p>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+                    <div class="text-center" id="file-upload-1"><label for="file1" class="file-input-label">Suicides</label><input id="file1" type="file" class="file-input" accept=".csv"><p class="text-xs mt-1 text-gray-500">Not Uploaded</p></div>
+                    <div class="text-center" id="file-upload-2"><label for="file2" class="file-input-label">Harassment</label><input id="file2" type="file" class="file-input" accept=".csv"><p class="text-xs mt-1 text-gray-500">Not Uploaded</p></div>
+                    <div class="text-center" id="file-upload-3"><label for="file3" class="file-input-label">Accidents</label><input id="file3" type="file" class="file-input" accept=".csv"><p class="text-xs mt-1 text-gray-500">Not Uploaded</p></div>
+                    <div class="text-center" id="file-upload-4"><label for="file4" class="file-input-label">Deaths</label><input id="file4" type="file" class="file-input" accept=".csv"><p class="text-xs mt-1 text-gray-500">Not Uploaded</p></div>
+                    <div class="text-center" id="file-upload-5"><label for="file5" class="file-input-label">Crime Rate</label><input id="file5" type="file" class="file-input" accept=".csv"><p class="text-xs mt-1 text-gray-500">Not Uploaded</p></div>
+                    <div class="text-center" id="file-upload-6"><label for="file6" class="file-input-label">Complaints</label><input id="file6" type="file" class="file-input" accept=".csv"><p class="text-xs mt-1 text-gray-500">Not Uploaded</p></div>
+                </div>
+                <div class="flex flex-col items-center">
+                    <button id="runModelBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center w-48" disabled>
+                        <span id="btn-text">Run Full Analysis</span>
+                        <div id="btn-spinner" class="spinner hidden ml-3"></div>
+                    </button>
+                    <div id="status" class="mt-4 text-sm text-gray-400">Loading initial data from server...</div>
+                </div>
+            </div>
+            
+            <div class="lg:col-span-3 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><h2 class="text-xl font-semibold text-white">Geospatial Analysis: Crime Hotspot Choropleth</h2></div>
+                <p class="text-sm text-gray-400 mb-4">Districts colored by their 2022 crime rate. Click on a district for detailed stats.</p>
+                <div id="map" class="h-[600px] rounded-lg bg-gray-700"></div>
+            </div>
+
+            <div class="lg:col-span-2 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M12 6V3m0 18v-3M5.636 5.636l1.414 1.414M18.364 18.364l-1.414-1.414M5.636 18.364l1.414-1.414M18.364 5.636l-1.414 1.414"></path></svg><h2 class="text-xl font-semibold text-white">Predictive Analytics: Key Crime Drivers (Random Forest)</h2></div>
+                <p class="text-sm text-gray-400 mb-4">This chart shows the factors the Random Forest model found most important for predicting crime rates.</p>
+                <div class="chart-container h-[550px]"><canvas id="importanceChart"></canvas></div>
+            </div>
+
+            <div class="lg:col-span-5 card">
+                 <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg><h2 class="text-xl font-semibold text-white">Comparative Analysis: District Crime Rates</h2></div>
+                <p class="text-sm text-gray-400 mb-4">Compare the overall crime rate per 1 Lakh population across all districts, sorted from highest to lowest.</p>
+                <div class="chart-container h-[450px]"><canvas id="districtChart"></canvas></div>
+            </div>
+
+            <div class="lg:col-span-3 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><h2 class="text-xl font-semibold text-white">Advanced NLP: FIR / Text Analysis</h2></div>
+                <p class="text-sm text-gray-400 mb-4">Paste an FIR or crime report. The backend will summarize it and extract key entities (Persons, Locations, Dates).</p>
+                <textarea id="nlp-input" class="w-full h-32 p-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200" placeholder="Paste text here... e.g., 'A robbery was reported by Mr. Suresh at 10:30 PM on Tuesday in Chennai. The suspects fled in a white car.'"></textarea>
+                <button id="runNlpBtn" class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center w-40">
+                    <span id="nlp-btn-text">Analyze Text</span>
+                    <div id="nlp-spinner" class="spinner hidden ml-3"></div>
+                </button>
+                <div id="nlp-results" class="mt-4 hidden">
+                    <h4 class="font-semibold text-lg text-cyan-300">Summary</h4>
+                    <p id="nlp-summary" class="text-sm text-gray-300 bg-gray-700 p-3 rounded-lg"></p>
+                    <h4 class="font-semibold text-lg text-cyan-300 mt-4">Extracted Entities (NER)</h4>
+                    <div id="nlp-entities" class="flex flex-wrap gap-2 bg-gray-700 p-3 rounded-lg"></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg><h2 class="text-xl font-semibold text-white">Time-Series Forecasting (Prophet)</h2></div>
+                <p class="text-sm text-gray-400 mb-4">Historical crime count (2020-2022) and a 1-year forecast for 2023.</p>
+                <div class="flex justify-end items-center mb-4"><label for="districtForecastSelect" class="text-sm font-medium mr-2">Select District:</label><select id="districtForecastSelect" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-1/2 p-2.5"></select></div>
+                <div class="chart-container h-[450px]"><canvas id="forecastChart"></canvas></div>
+            </div>
+
+            <div class="lg:col-span-2 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg><h2 class="text-xl font-semibold text-white">Crime Classification: District Profiles</h2></div>
+                <p class="text-sm text-gray-400 mb-4">Composition of crime and safety incidents in a selected district.</p>
+                <div class="flex justify-end items-center mb-4"><label for="districtProfileSelect" class="text-sm font-medium mr-2">Select District:</label><select id="districtProfileSelect" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-1/2 p-2.5"></select></div>
+                <div class="chart-container h-[450px]"><canvas id="profileChart"></canvas></div>
+            </div>
+            
+             <div class="lg:col-span-3 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><h2 class="text-xl font-semibold text-white">Severity Prediction: District Severity Score</h2></div>
+                <p class="text-sm text-gray-400 mb-4">A calculated score representing the proportion of serious crimes (murder, rape) to high-volume incidents.</p>
+                 <div class="chart-container h-[450px]"><canvas id="severityChart"></canvas></div>
+            </div>
+
+            <div class="lg:col-span-2 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg><h2 class="text-xl font-semibold text-white">Public Health & Safety Risk Analysis</h2></div>
+                <p class="text-sm text-gray-400 mb-4">Analyzes the relationship between suicides, road accidents, and the overall crime rate.</p>
+                 <div class="chart-container h-[400px]"><canvas id="riskAnalysisChart"></canvas></div>
+                 <div id="risk-text-analysis" class="text-sm text-gray-400 mt-4">This bubble chart shows three variables. The X-axis is the Suicide Rate, the Y-axis is the Road Accident Rate, and the size of the bubble is the overall Crime Rate.</div>
+            </div>
+            
+            <div class="lg:col-span-3 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path></svg><h2 class="text-xl font-semibold text-white">Advanced Clustering: District Crime Profiles (K-Means)</h2></div>
+                <p class="text-sm text-gray-400 mb-4">Districts automatically grouped into 4 profiles based on their crime, severity, and safety metrics.</p>
+                <div class="chart-container h-[400px]"><canvas id="clusterChart"></canvas></div>
+            </div>
+
+
+            <div class="lg:col-span-5 card">
+                <div class="flex items-center mb-4"><svg class="w-6 h-6 mr-3 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg><h2 class="text-xl font-semibold text-white">Statistical Analysis: Socio-Factor Correlation</h2></div>
+                <p class="text-sm text-gray-400 mb-4">Interactively explore the relationship between socioeconomic factors and the overall crime rate.</p>
+                <div class="flex justify-end items-center mb-4"><label for="factorSelect" class="text-sm font-medium mr-2">Select Factor:</label><select id="factorSelect" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-1/3 p-2.5"><option selected value="Suicide_Rate">Suicide Rate</option><option value="Road_Accident_Rate">Road Accident Rate</option><option value="Murder_Rate">Murder Rate</option><option value="Complaints_per_Capita">Complaints per Capita</option></select>
+                </div>
+                <div class="chart-container h-[450px]"><canvas id="correlationChart"></canvas></div>
+            </div>
+
+        </div>
+    </div>
+    
+    <script src="/js/app.js"></script>
+</body>
+</html>
