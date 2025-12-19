@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crime Analysis Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #020617; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow: hidden; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        /* Scanner Animation for Header */
+        @keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .scanner-line { height: 2px; width: 100%; background: linear-gradient(90deg, transparent, #0ea5e9, transparent); animation: scan 3s linear infinite; }
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <aside class="w-20 lg:w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between z-20">
+        <div>
+            <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-800">
+                <i class="fa-solid fa-shield-cat text-cyan-400 text-3xl"></i>
+                <span class="ml-3 font-bold text-xl tracking-widest hidden lg:block text-white">Team 7</span>
+            </div>
+            <nav class="mt-8 flex flex-col gap-2 p-2">
+                <a href="#" class="flex items-center gap-4 p-3 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    <i class="fa-solid fa-chart-radar"></i> <span class="hidden lg:block">Command Dashboard</span>
+                </a>
+                <a href="#" class="flex items-center gap-4 p-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-map-location-dot"></i> <span class="hidden lg:block">Geo-Spatial Intel</span>
+                </a>
+                <a href="logs.html" class="flex items-center gap-4 p-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-clipboard-list"></i> <span class="hidden lg:block">Officer Logs</span>
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-slate-800 text-center lg:text-left">
+            <div class="text-[10px] text-slate-500 hidden lg:block mb-1">SYSTEM STATUS</div>
+            <div class="text-xs text-emerald-400 font-mono flex items-center justify-center lg:justify-start gap-2">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> ONLINE
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative">
+        
+        <header class="h-14 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex justify-between items-center px-6">
+            <div class="hidden md:flex items-center gap-6 text-[10px] font-mono text-slate-400 bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-700">
+                <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-green-500 blink"></span> <span class="text-green-400">REAL-TIME: ACTIVE</span></div>
+                <div class="w-px h-3 bg-slate-600"></div>
+                <div>ML ENGINE: <span class="text-white">RUNNING</span></div>
+                <div class="w-px h-3 bg-slate-600"></div>
+                <div>SYNC: <span class="text-white">100%</span></div>
+            </div>
+            <div class="flex items-center gap-6 text-right">
+                <div>
+                    <div class="text-[10px] text-slate-500 uppercase">Location Scope</div>
+                    <div class="text-xs font-bold text-white">TAMIL NADU <span class="text-cyan-500">| INDIA</span></div>
+                </div>
+                <div class="text-right">
+                    <div class="text-xs font-mono text-slate-400" id="live-clock">00:00:00</div>
+                    <div class="text-[10px] font-bold text-yellow-500 bg-yellow-500/10 px-2 rounded">ADMIN VIEW</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="bg-slate-950 border-b border-slate-800 flex items-center h-10 overflow-hidden relative">
+            <div class="w-48 bg-slate-900 h-full flex items-center px-4 border-r border-slate-800 shrink-0">
+                <span class="text-[10px] font-bold text-slate-400 mr-2">THREAT</span>
+                <div class="flex gap-1 flex-1">
+                    <div class="h-1.5 w-1/4 bg-green-500 rounded-sm"></div>
+                    <div class="h-1.5 w-1/4 bg-yellow-500 rounded-sm"></div>
+                    <div class="h-1.5 w-1/4 bg-orange-500 rounded-sm opacity-40"></div>
+                    <div class="h-1.5 w-1/4 bg-red-600 rounded-sm opacity-40"></div>
+                </div>
+                <span class="ml-2 text-[10px] font-bold text-yellow-500">MED</span>
+            </div>
+            <div class="flex-1 px-4 text-[10px] font-mono text-slate-500 flex items-center justify-between">
+                <div class="flex gap-4">
+                    <span class="text-purple-400 font-bold">AI CORE STATUS:</span>
+                    <span>CLASSIFIER: <b class="text-white">RANDOM FOREST</b></span>
+                    <span>FORECAST: <b class="text-white">LSTM v2</b></span>
+                    <span>CLUSTERING: <b class="text-white">DBSCAN</b></span>
+                </div>
+                <div>ACCURACY: <span class="text-green-400">94.2%</span></div>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 grid grid-cols-12 gap-6 relative">
+            
+            <div class="col-span-12 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="glass p-4 rounded-xl border-l-4 border-cyan-500 relative overflow-hidden group">
+                    <div class="scanner-line absolute top-0 left-0 opacity-0 group-hover:opacity-100"></div>
+                    <div class="text-slate-400 text-xs uppercase tracking-wider">Total Incidents</div>
+                    <div class="text-2xl font-bold text-white mt-1" id="stat-total">--</div>
+                    <div class="h-8 w-full mt-2"><canvas id="spark1"></canvas></div>
+                </div>
+                <div class="glass p-4 rounded-xl border-l-4 border-red-500">
+                    <div class="text-red-400 text-xs uppercase font-bold">Critical Zone</div>
+                    <div class="text-xl font-bold text-white mt-1 truncate" id="stat-risk">--</div>
+                    <div class="text-[10px] text-slate-500 mt-1">Severity Score: <span class="text-white" id="stat-score">--</span></div>
+                </div>
+                <div class="glass p-4 rounded-xl border-l-4 border-emerald-500">
+                    <div class="text-emerald-400 text-xs uppercase font-bold">Safest District</div>
+                    <div class="text-xl font-bold text-white mt-1 truncate" id="stat-safe">--</div>
+                    <div class="text-[10px] text-emerald-500/70 mt-1">Patrols Active</div>
+                </div>
+                <div class="glass p-4 rounded-xl border-l-4 border-purple-500">
+                    <div class="text-purple-400 text-xs uppercase font-bold">AI Prediction Index</div>
+                    <div class="text-2xl font-bold text-white mt-1">92.6%</div>
+                    <div class="h-8 w-full mt-2"><canvas id="spark2"></canvas></div>
+                </div>
+            </div>
+
+            <div class="col-span-12 lg:col-span-8 flex flex-col gap-6">
+                <div class="glass p-1 rounded-xl h-[450px] relative">
+                    <div id="map" class="w-full h-full rounded-lg bg-slate-800"></div>
+                </div>
+            </div>
+
+            <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+                <div class="glass p-5 rounded-xl border border-cyan-500/20">
+                    <h3 class="text-sm font-bold text-cyan-400 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square"></i> OFFICER CASE ENTRY
+                    </h3>
+                    <form id="officerForm" class="space-y-3">
+                        <div>
+                            <label class="text-[10px] text-slate-400 uppercase">District</label>
+                            <select id="entry-district" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:border-cyan-500 outline-none"></select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 uppercase">Crime Type</label>
+                            <select id="entry-type" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:border-cyan-500 outline-none">
+                                <option value="Theft">Theft / General Crime</option>
+                                <option value="Murder">Murder / Homicide</option>
+                                <option value="Accident">Road Accident</option>
+                                <option value="Harassment">Harassment</option>
+                                <option value="Suicide">Suicide</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 uppercase">Description</label>
+                            <input type="text" id="entry-desc" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:border-cyan-500 outline-none" placeholder="Brief details...">
+                        </div>
+                        <div class="pt-2">
+                            <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 rounded text-sm shadow-lg shadow-cyan-500/30 transition">
+                                <i class="fa-solid fa-database mr-2"></i> LOG TO DATABASE
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="glass p-4 rounded-xl flex-1 border-t-2 border-purple-500 flex flex-col">
+                    <h3 class="text-sm font-bold text-purple-400 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-brain"></i> PREDICTIVE INSIGHTS
+                    </h3>
+                    <div id="ai-feed" class="space-y-3 max-h-[300px] overflow-y-auto pr-2"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
